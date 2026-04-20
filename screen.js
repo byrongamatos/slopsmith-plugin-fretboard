@@ -4,6 +4,7 @@
 let _fbEnabled = false;
 let _fbCanvas = null;
 let _fbCtx = null;
+let _fbDismissBtn = null;
 
 const FB_STRINGS = 6;
 const FB_FRETS = 24;
@@ -56,13 +57,31 @@ function _fbCreateCanvas() {
     const player = document.getElementById('player');
     if (!player) return;
 
+    // `bottom` is set dynamically by _fbResize to match the controls-bar height
+    // (which changes when the bar flex-wraps to multiple rows on narrow windows).
     _fbCanvas = document.createElement('canvas');
     _fbCanvas.id = 'fretboard-canvas';
-    _fbCanvas.style.cssText = 'position:absolute;bottom:50px;left:0;right:0;z-index:20;pointer-events:none;';
+    _fbCanvas.style.cssText = 'position:absolute;left:0;right:0;z-index:20;pointer-events:none;';
 
     // Insert before the controls bar
     const controls = document.getElementById('player-controls');
     player.insertBefore(_fbCanvas, controls);
+
+    // Dismiss button — small ✕ at top-right of the overlay. Sibling of the
+    // canvas (not drawn into it) so pointer-events:auto makes it clickable
+    // even though the canvas itself keeps pointer-events:none.
+    _fbDismissBtn = document.createElement('button');
+    _fbDismissBtn.id = 'btn-fretboard-dismiss';
+    _fbDismissBtn.textContent = '✕';
+    _fbDismissBtn.title = 'Hide fretboard overlay';
+    _fbDismissBtn.style.cssText =
+        'position:absolute;right:8px;z-index:21;width:24px;height:24px;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'background:rgba(8,8,16,0.85);border:1px solid rgba(100,100,130,0.5);' +
+        'border-radius:4px;color:#aaa;cursor:pointer;font-size:12px;' +
+        'pointer-events:auto;';
+    _fbDismissBtn.onclick = _fbToggle;
+    player.insertBefore(_fbDismissBtn, controls);
 
     _fbCtx = _fbCanvas.getContext('2d');
     _fbResize();
@@ -77,14 +96,28 @@ function _fbRemoveCanvas() {
         _fbCanvas = null;
         _fbCtx = null;
     }
+    if (_fbDismissBtn) {
+        _fbDismissBtn.remove();
+        _fbDismissBtn = null;
+    }
 }
 
 function _fbResize() {
     if (!_fbCanvas) return;
     const player = document.getElementById('player');
+    const controls = document.getElementById('player-controls');
     if (!player) return;
+
+    // Sit flush above the controls bar regardless of how many rows it wrapped to.
+    const controlsH = controls ? controls.offsetHeight : 50;
+    _fbCanvas.style.bottom = controlsH + 'px';
     _fbCanvas.width = player.clientWidth;
     _fbCanvas.height = Math.max(120, player.clientHeight * 0.15);
+
+    // Park the dismiss button at the top-right of the fretboard area.
+    if (_fbDismissBtn) {
+        _fbDismissBtn.style.bottom = (controlsH + _fbCanvas.height - 30) + 'px';
+    }
 }
 
 // ── Drawing ─────────────────────────────────────────────────────────────
